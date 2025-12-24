@@ -1,0 +1,10 @@
+services:
+  views: 2409
+  likes: 2635
+  shares: 2710
+  follows: 2597
+
+roles:
+  free: Free
+  bronze: Bronze
+  silver: Silver
