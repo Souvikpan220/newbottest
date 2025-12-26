@@ -6,7 +6,7 @@ import discord
 from discord import app_commands
 
 # ==========================================================
-# ENVIRONMENT VARIABLES (RAILWAY SECRETS)
+# ENVIRONMENT VARIABLES
 # ==========================================================
 TOKEN = os.getenv("DISCORD_TOKEN")
 API_KEY = os.getenv("API_KEY")
@@ -16,7 +16,6 @@ LOG_CHANNEL_ID = int(os.getenv("LOG_CHANNEL_ID"))
 ALLOWED_CHANNEL_ID = int(os.getenv("ALLOWED_CHANNEL_ID"))
 GUILD_ID = int(os.getenv("GUILD_ID"))
 
-# Fail fast if secrets are missing
 required_envs = {
     "DISCORD_TOKEN": TOKEN,
     "API_KEY": API_KEY,
@@ -31,7 +30,7 @@ for name, value in required_envs.items():
         raise RuntimeError(f"Missing required environment variable: {name}")
 
 # ==========================================================
-# NON-SENSITIVE CONFIG
+# CONFIG FILE
 # ==========================================================
 with open("config.yaml", "r") as f:
     cfg = yaml.safe_load(f)
@@ -49,7 +48,19 @@ ROLE_LIMITS = {
 }
 
 # ==========================================================
-# COOLDOWNS (SECONDS)
+# FREE COMMAND LIMIT
+# ==========================================================
+FREE_COMMAND_LIMIT = 10
+
+user_command_usage = {
+    "jviews": {},
+    "jlikes": {},
+    "jshares": {},
+    "jfollow": {},
+}
+
+# ==========================================================
+# COOLDOWNS
 # ==========================================================
 COOLDOWNS = {
     "jviews": 300,
@@ -82,6 +93,16 @@ def get_user_tier(member: discord.Member):
     return None
 
 
+def increment_usage(command_name, user_id):
+    user_command_usage[command_name][user_id] = (
+        user_command_usage[command_name].get(user_id, 0) + 1
+    )
+
+
+def get_usage(command_name, user_id):
+    return user_command_usage[command_name].get(user_id, 0)
+
+
 def place_order(service_id, link, quantity):
     payload = {
         "key": API_KEY,
@@ -99,10 +120,7 @@ async def send_log(interaction, tier, service, quantity, link, order_id):
     if not channel:
         return
 
-    embed = discord.Embed(
-        title="📦 JEET Order Logged",
-        color=discord.Color.purple()
-    )
+    embed = discord.Embed(title="📦 JEET Order Logged", color=discord.Color.purple())
     embed.add_field(name="User", value=f"{interaction.user} (`{interaction.user.id}`)", inline=False)
     embed.add_field(name="Role", value=tier.capitalize(), inline=True)
     embed.add_field(name="Service", value=service.capitalize(), inline=True)
@@ -145,6 +163,19 @@ async def process(interaction: discord.Interaction, service_key: str, command_na
         )
         return
 
+    # ================= FREE USAGE LIMIT =================
+    if tier == "free":
+        used = get_usage(command_name, interaction.user.id)
+        if used >= FREE_COMMAND_LIMIT:
+            await interaction.response.send_message(
+                "🚫 **Free Limit Reached!**\n\n"
+                "You have used this command **10/10 times**.\n"
+                "💎 **Buy JEET Premium to unlock unlimited usage!**",
+                ephemeral=True
+            )
+            return
+
+    # ================= COOLDOWN =================
     user_id = interaction.user.id
     now = time.time()
 
@@ -181,6 +212,10 @@ async def process(interaction: discord.Interaction, service_key: str, command_na
 
     if "order" in result:
         order_id = result["order"]
+
+        if tier == "free":
+            increment_usage(command_name, interaction.user.id)
+
         await interaction.edit_original_response(
             content=(
                 f"✅ **Order Placed**\n"
