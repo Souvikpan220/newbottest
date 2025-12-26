@@ -50,7 +50,7 @@ ROLE_LIMITS = {
 # ==========================================================
 # FREE COMMAND LIMIT
 # ==========================================================
-FREE_COMMAND_LIMIT = 10
+FREE_COMMAND_LIMIT = 5
 
 user_command_usage = {
     "jviews": {},
@@ -169,7 +169,7 @@ async def process(interaction: discord.Interaction, service_key: str, command_na
         if used >= FREE_COMMAND_LIMIT:
             await interaction.response.send_message(
                 "🚫 **Free Limit Reached!**\n\n"
-                "You have used this command **10/10 times**.\n"
+                "You have used this command **5/5 times**.\n"
                 "💎 **Buy JEET Premium to unlock unlimited usage!**",
                 ephemeral=True
             )
@@ -296,3 +296,4 @@ async def on_ready():
     print(f"✅ JEET Bot Online as {client.user}")
 
 client.run(TOKEN)
+
